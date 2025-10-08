@@ -24,6 +24,9 @@ from azure.mgmt.storage import StorageManagementClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.core.exceptions import AzureError, HttpResponseError
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
 
 # Import configuration settings
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -570,99 +573,284 @@ class AzureScanner:
     
     def generate_scan_report(self, output_path: Optional[str] = None) -> str:
         """
-        Generate human-readable compliance report and save to file.
-        
-        WHY TEXT REPORTS:
-        - Easy to email, share, and review without special tools
-        - Can be committed to git for version control and trending
-        - Provides context and remediation guidance for security teams
-        - Serves as audit evidence for compliance frameworks
-        
+        Generate formatted Excel compliance report and save to file.
+
+        WHY EXCEL REPORTS:
+        - Professional presentation for executives and auditors
+        - Easy filtering, sorting, and pivot tables for analysis
+        - Color-coded severity levels for quick risk assessment
+        - Supports complex data structures and formulas
+        - Industry standard for GRC reporting and evidence collection
+
         Args:
-            output_path: Path to save report file (defaults to REPORTS_DIR/compliance_report.txt)
+            output_path: Path to save report file (defaults to REPORTS_DIR/compliance_report.xlsx)
 
         Returns:
-            Report content as string
+            Report path as string
         """
         # Use default path from settings if not provided
         if output_path is None:
-            output_path = f"{REPORTS_DIR}/compliance_report.txt"
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            output_path = f"{REPORTS_DIR}/compliance_report_{timestamp}.xlsx"
 
         # Ensure reports directory exists
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Build report content
-        report_lines = []
-        report_lines.append("=" * 80)
-        report_lines.append("AZURE COMPLIANCE SCAN REPORT")
-        report_lines.append("=" * 80)
-        report_lines.append(f"Timestamp: {datetime.utcnow().isoformat()}")
-        report_lines.append(f"Subscription: {self.subscription_id}")
-        report_lines.append(f"Total Violations: {len(self.scan_results)}")
-        report_lines.append("=" * 80)
-        report_lines.append("")
-        
-        # Group violations by severity
-        for severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
-            severity_violations = [
-                v for v in self.scan_results 
-                if v.get('severity') == severity
-            ]
-            
-            if not severity_violations:
-                continue
-            
-            report_lines.append(f"\n{'='*80}")
-            report_lines.append(f"{severity} SEVERITY ({len(severity_violations)} violations)")
-            report_lines.append(f"{'='*80}\n")
-            
-            for i, violation in enumerate(severity_violations, 1):
-                report_lines.append(f"{i}. {violation.get('description', 'N/A')}")
-                report_lines.append(f"   Rule ID: {violation.get('rule_id', 'N/A')}")
-                report_lines.append(f"   Resource: {violation.get('resource_name', 'N/A')}")
-                report_lines.append(f"   Resource Group: {violation.get('resource_group', 'N/A')}")
-                report_lines.append(f"   NIST CSF: {violation.get('nist_function', 'N/A')} - {violation.get('nist_category', 'N/A')}")
-                
-                # Show violating NSG rule details if present
-                if 'violating_rule' in violation:
-                    report_lines.append(f"   Violating NSG Rule: {violation['violating_rule']}")
-                    details = violation.get('violating_rule_details', {})
-                    report_lines.append(f"      Source: {details.get('source', 'N/A')}")
-                    report_lines.append(f"      Destination Port: {details.get('destination_port', 'N/A')}")
-                    report_lines.append(f"      Protocol: {details.get('protocol', 'N/A')}")
-                    report_lines.append(f"      Access: {details.get('access', 'N/A')}")
-                
-                # Show expected vs actual for storage rules
-                if 'expected' in violation:
-                    report_lines.append(f"   Expected: {violation.get('expected', 'N/A')}")
-                    report_lines.append(f"   Actual: {violation.get('actual', 'N/A')}")
-                
-                report_lines.append("")
-        
-        # Summary recommendations
-        report_lines.append("\n" + "=" * 80)
-        report_lines.append("REMEDIATION RECOMMENDATIONS")
-        report_lines.append("=" * 80)
-        report_lines.append("")
-        report_lines.append("1. CRITICAL violations should be remediated immediately")
-        report_lines.append("2. HIGH violations should be addressed within 7 days")
-        report_lines.append("3. MEDIUM violations should be addressed within 30 days")
-        report_lines.append("4. Use Azure Policy or Terraform to enforce compliance automatically")
-        report_lines.append("5. Schedule regular scans (daily/weekly) to catch new violations")
-        report_lines.append("")
-        
-        # Join lines and save to file
-        report_content = "\n".join(report_lines)
-        
+
+        # Create Excel workbook
+        wb = Workbook()
+
+        # Remove default sheet and create custom sheets
+        wb.remove(wb.active)
+
+        # Create Summary sheet
+        self._create_summary_sheet(wb)
+
+        # Create Violations sheet
+        self._create_violations_sheet(wb)
+
+        # Create Recommendations sheet
+        self._create_recommendations_sheet(wb)
+
+        # Save workbook
         try:
-            with open(output_file, 'w', encoding='utf-8') as f:
-                f.write(report_content)
-            print(f"\n✓ Report saved to: {output_file.absolute()}")
+            wb.save(output_path)
+            print(f"\n✓ Excel report saved to: {output_file.absolute()}")
+            return str(output_file.absolute())
         except IOError as e:
-            print(f"\n✗ Failed to save report: {e}")
-        
-        return report_content
+            print(f"\n✗ Failed to save Excel report: {e}")
+            return ""
+
+    def _create_summary_sheet(self, wb: Workbook):
+        """Create summary overview sheet with key metrics."""
+        ws = wb.create_sheet("Summary", 0)
+
+        # Define colors
+        header_fill = PatternFill(start_color="1F4788", end_color="1F4788", fill_type="solid")
+        critical_fill = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
+        high_fill = PatternFill(start_color="FF6600", end_color="FF6600", fill_type="solid")
+        medium_fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+        low_fill = PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
+
+        white_font = Font(color="FFFFFF", bold=True, size=12)
+        title_font = Font(bold=True, size=16)
+        header_font = Font(bold=True, size=11)
+
+        # Title
+        ws['A1'] = "AZURE COMPLIANCE SCAN REPORT"
+        ws['A1'].font = title_font
+        ws.merge_cells('A1:D1')
+
+        # Report metadata
+        ws['A3'] = "Report Date:"
+        ws['B3'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        ws['A4'] = "Subscription ID:"
+        ws['B4'] = self.subscription_id
+        ws['A5'] = "Total Violations:"
+        ws['B5'] = len(self.scan_results)
+
+        # Style metadata
+        for row in range(3, 6):
+            ws[f'A{row}'].font = header_font
+
+        # Severity breakdown header
+        ws['A7'] = "VIOLATIONS BY SEVERITY"
+        ws['A7'].font = Font(bold=True, size=14)
+        ws.merge_cells('A7:D7')
+
+        # Severity table headers
+        ws['A9'] = "Severity"
+        ws['B9'] = "Count"
+        ws['C9'] = "Percentage"
+        ws['D9'] = "SLA"
+
+        for col in ['A', 'B', 'C', 'D']:
+            ws[f'{col}9'].fill = header_fill
+            ws[f'{col}9'].font = white_font
+            ws[f'{col}9'].alignment = Alignment(horizontal='center')
+
+        # Count violations by severity
+        severity_counts = {}
+        total = len(self.scan_results)
+
+        for severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+            count = len([v for v in self.scan_results if v.get('severity') == severity])
+            severity_counts[severity] = count
+
+        # Populate severity data
+        row = 10
+        severity_config = {
+            'CRITICAL': (critical_fill, "Immediate"),
+            'HIGH': (high_fill, "7 Days"),
+            'MEDIUM': (medium_fill, "30 Days"),
+            'LOW': (low_fill, "90 Days")
+        }
+
+        for severity, (fill, sla) in severity_config.items():
+            count = severity_counts.get(severity, 0)
+            percentage = (count / total * 100) if total > 0 else 0
+
+            ws[f'A{row}'] = severity
+            ws[f'B{row}'] = count
+            ws[f'C{row}'] = f"{percentage:.1f}%"
+            ws[f'D{row}'] = sla
+
+            # Apply severity color to entire row
+            for col in ['A', 'B', 'C', 'D']:
+                ws[f'{col}{row}'].fill = fill
+                ws[f'{col}{row}'].font = Font(color="FFFFFF", bold=True)
+                ws[f'{col}{row}'].alignment = Alignment(horizontal='center')
+
+            row += 1
+
+        # Column widths
+        ws.column_dimensions['A'].width = 15
+        ws.column_dimensions['B'].width = 12
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 15
+
+    def _create_violations_sheet(self, wb: Workbook):
+        """Create detailed violations sheet with all findings."""
+        ws = wb.create_sheet("Violations", 1)
+
+        # Define styles
+        header_fill = PatternFill(start_color="1F4788", end_color="1F4788", fill_type="solid")
+        white_font = Font(color="FFFFFF", bold=True, size=11)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Headers
+        headers = [
+            "Severity", "Description", "Resource Name", "Resource Group",
+            "Resource Type", "Rule ID", "NIST Function", "NIST Category",
+            "Expected", "Actual", "Details"
+        ]
+
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.value = header
+            cell.fill = header_fill
+            cell.font = white_font
+            cell.alignment = Alignment(horizontal='center', wrap_text=True)
+            cell.border = border
+
+        # Populate data
+        severity_colors = {
+            'CRITICAL': PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid"),
+            'HIGH': PatternFill(start_color="FFE6CC", end_color="FFE6CC", fill_type="solid"),
+            'MEDIUM': PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid"),
+            'LOW': PatternFill(start_color="E6F4EA", end_color="E6F4EA", fill_type="solid")
+        }
+
+        # Sort violations by severity
+        severity_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}
+        sorted_violations = sorted(
+            self.scan_results,
+            key=lambda x: severity_order.get(x.get('severity', 'LOW'), 4)
+        )
+
+        for row_num, violation in enumerate(sorted_violations, 2):
+            severity = violation.get('severity', 'N/A')
+
+            # Build details string
+            details = []
+            if 'violating_rule' in violation:
+                details.append(f"NSG Rule: {violation['violating_rule']}")
+                rule_details = violation.get('violating_rule_details', {})
+                details.append(f"Source: {rule_details.get('source', 'N/A')}")
+                details.append(f"Port: {rule_details.get('destination_port', 'N/A')}")
+
+            row_data = [
+                severity,
+                violation.get('description', 'N/A'),
+                violation.get('resource_name', 'N/A'),
+                violation.get('resource_group', 'N/A'),
+                violation.get('resource_type', 'N/A'),
+                violation.get('rule_id', 'N/A'),
+                violation.get('nist_function', 'N/A'),
+                violation.get('nist_category', 'N/A'),
+                str(violation.get('expected', 'N/A')),
+                str(violation.get('actual', 'N/A')),
+                ' | '.join(details) if details else 'N/A'
+            ]
+
+            for col_num, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_num, column=col_num)
+                cell.value = value
+                cell.border = border
+                cell.alignment = Alignment(wrap_text=True, vertical='top')
+
+                # Apply severity color to row
+                if col_num == 1 and severity in severity_colors:
+                    for c in range(1, len(headers) + 1):
+                        ws.cell(row=row_num, column=c).fill = severity_colors[severity]
+
+        # Set column widths
+        column_widths = [12, 50, 25, 25, 35, 30, 15, 15, 20, 20, 40]
+        for i, width in enumerate(column_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = width
+
+        # Freeze header row
+        ws.freeze_panes = 'A2'
+
+        # Add auto-filter
+        ws.auto_filter.ref = ws.dimensions
+
+    def _create_recommendations_sheet(self, wb: Workbook):
+        """Create recommendations and remediation guidance sheet."""
+        ws = wb.create_sheet("Recommendations", 2)
+
+        # Title
+        ws['A1'] = "REMEDIATION RECOMMENDATIONS"
+        ws['A1'].font = Font(bold=True, size=16)
+        ws.merge_cells('A1:C1')
+
+        # Recommendations
+        recommendations = [
+            ("Priority", "Timeframe", "Action"),
+            ("CRITICAL", "Immediate", "Remediate immediately - poses active security risk"),
+            ("HIGH", "7 Days", "Address within one week - significant compliance gap"),
+            ("MEDIUM", "30 Days", "Resolve within 30 days - moderate security impact"),
+            ("LOW", "90 Days", "Plan remediation - minor compliance issue"),
+            ("", "", ""),
+            ("General Best Practices", "", ""),
+            ("1.", "Automation", "Use Azure Policy to prevent future violations"),
+            ("2.", "IaC Security", "Scan Terraform/ARM templates before deployment"),
+            ("3.", "Monitoring", "Schedule daily/weekly compliance scans"),
+            ("4.", "Documentation", "Maintain audit trail of all remediations"),
+            ("5.", "Training", "Educate dev teams on secure Azure configuration"),
+        ]
+
+        # Define styles
+        header_fill = PatternFill(start_color="1F4788", end_color="1F4788", fill_type="solid")
+        white_font = Font(color="FFFFFF", bold=True)
+
+        start_row = 3
+        for i, (col1, col2, col3) in enumerate(recommendations):
+            row = start_row + i
+            ws[f'A{row}'] = col1
+            ws[f'B{row}'] = col2
+            ws[f'C{row}'] = col3
+
+            # Style header row
+            if i == 0:
+                for col in ['A', 'B', 'C']:
+                    ws[f'{col}{row}'].fill = header_fill
+                    ws[f'{col}{row}'].font = white_font
+                    ws[f'{col}{row}'].alignment = Alignment(horizontal='center')
+
+            # Bold section headers
+            if col1 in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "General Best Practices"]:
+                ws[f'A{row}'].font = Font(bold=True)
+
+        # Column widths
+        ws.column_dimensions['A'].width = 20
+        ws.column_dimensions['B'].width = 15
+        ws.column_dimensions['C'].width = 60
 
 
 # WHY __main__ BLOCK:

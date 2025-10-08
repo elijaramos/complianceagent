@@ -6,3 +6,4 @@ azure-mgmt-security==6.0.0
 anthropic==0.69.0
 python-dotenv==1.0.0
 pyyaml==6.0.1
+openpyxl==3.1.2
