@@ -2,14 +2,14 @@
 
 **Automated Azure compliance scanning, analysis, and remediation powered by AI**
 
-**Developer:** Elija Ramos, CISSP | Information Security & GRC Professional
+**Developer:** Elija Ramos, CISSP | GRC Engineering & Information Security
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![NIST CSF 2.0](https://img.shields.io/badge/NIST-CSF%202.0-green.svg)](https://www.nist.gov/cyberframework)
 
 ## Overview
 
-The Azure Compliance Agent is an intelligent automation tool that demonstrates practical expertise in **cloud security, GRC automation, and AI-driven compliance**. This project showcases the integration of cybersecurity frameworks (NIST CSF 2.0), cloud infrastructure security (Azure), and emerging AI technologies to solve real-world compliance challenges.
+The Azure Compliance Agent is an intelligent automation tool that demonstrates practical expertise in **cloud security, GRC Engineering, and AI-driven compliance**. This project showcases the integration of cybersecurity frameworks (NIST CSF 2.0), cloud infrastructure security (Azure), and emerging AI technologies to solve real-world GRC Engineering challenges.
 
 Built to scan Azure infrastructure for security and compliance violations, the agent uses Claude AI to generate detailed remediation plans and executes approved fixes—all while maintaining comprehensive audit trails and human oversight required in enterprise GRC programs.
 
@@ -23,15 +23,15 @@ Built to scan Azure infrastructure for security and compliance violations, the a
 - **📊 Audit-Ready Reporting**: Generates comprehensive compliance reports with before/after comparisons and complete audit trails
 - **🛡️ NIST CSF 2.0 Aligned**: Maps controls directly to NIST Cybersecurity Framework categories (IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER)
 
-### Why This Matters for GRC
+### Why This Matters for GRC Engineering
 
-This project demonstrates understanding of:
-- **Risk Management**: Automated vulnerability identification and risk-based prioritization
-- **Compliance Automation**: Reducing manual audit burden through continuous compliance monitoring
-- **Security Operations**: Integration of security tooling with cloud infrastructure (Azure)
-- **Governance**: Policy-as-code implementation using YAML-defined compliance rules
-- **AI in Security**: Practical application of LLMs for security analysis and decision support
-- **Third-Party Risk**: Service principal management and least-privilege access controls
+This project demonstrates core GRC Engineering principles:
+- **Risk Management Engineering**: Automated vulnerability identification and risk-based prioritization at scale
+- **Compliance-as-Code**: Policy automation using YAML-defined rules, reducing manual audit burden through continuous monitoring
+- **Security Orchestration**: Integration of security tooling with cloud infrastructure (Azure) for automated remediation
+- **Governance Automation**: Programmatic control implementation with approval workflows and audit trail generation
+- **AI-Driven GRC**: Practical application of LLMs for intelligent security analysis and decision support
+- **Access Governance**: Service principal management and least-privilege access control enforcement
 
 ## Architecture
 
@@ -326,11 +326,11 @@ python src/remediator.py
 - Cloud security posture management (CSPM) principles
 - Infrastructure-as-Code security scanning
 
-**GRC & Compliance:**
-- NIST CSF framework implementation
-- Compliance automation and continuous monitoring
-- Risk-based prioritization and remediation
-- Audit trail generation and evidence collection
+**GRC Engineering:**
+- NIST CSF framework implementation and automation
+- Compliance-as-code and continuous control monitoring
+- Risk-based prioritization and automated remediation
+- Audit trail generation and evidence collection automation
 
 **Development & Automation:**
 - Python SDK integration (Azure, Anthropic)
@@ -366,20 +366,21 @@ Contributions are welcome! Please:
 
 ## Professional Context
 
-This project was developed as a portfolio demonstration of practical GRC and cloud security expertise by **Elija Ramos, CISSP**. It represents the intersection of traditional information security governance with modern cloud infrastructure and AI technologies.
+This project was developed as a portfolio demonstration of practical **GRC Engineering** and cloud security expertise by **Elija Ramos, CISSP**. It represents the intersection of traditional information security governance with modern cloud infrastructure, automation engineering, and AI technologies.
 
 **Key Competencies Highlighted:**
+- GRC Engineering: Building scalable compliance and governance systems
 - Enterprise cloud security architecture and implementation
 - Regulatory compliance automation (NIST, CIS, SOC 2, HIPAA)
-- Risk assessment and security control implementation
-- Python development for security automation
-- AI/ML integration for security operations
+- Risk assessment engineering and automated security control implementation
+- Python development for security and compliance automation
+- AI/ML integration for intelligent security operations
 - DevSecOps and security-as-code practices
 
 ## Contact & Support
 
 **Elija Ramos, CISSP**
-Information Security & GRC Professional
+GRC Engineering & Information Security
 
 For questions, collaboration, or professional inquiries:
 - GitHub Issues: Use this repository's issue tracker
@@ -390,7 +391,7 @@ For questions, collaboration, or professional inquiries:
 - Built with [Azure SDK for Python](https://github.com/Azure/azure-sdk-for-python)
 - Powered by [Claude AI](https://www.anthropic.com/claude) - Anthropic's advanced language model
 - Compliance rules based on [NIST Cybersecurity Framework 2.0](https://www.nist.gov/cyberframework)
-- Inspired by real-world GRC challenges in enterprise cloud security
+- Inspired by real-world GRC Engineering challenges in enterprise cloud security
 
 ---
 
