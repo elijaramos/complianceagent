@@ -379,7 +379,7 @@ This project was developed as a portfolio demonstration of practical **GRC Engin
 
 ## Contact & Support
 
-**Elija Ramos, CISSP**
+**Elija Ramos, CISSP** -
 GRC Engineering & Information Security
 
 For questions, collaboration, or professional inquiries:
@@ -391,7 +391,7 @@ For questions, collaboration, or professional inquiries:
 - Built with [Azure SDK for Python](https://github.com/Azure/azure-sdk-for-python)
 - Powered by [Claude AI](https://www.anthropic.com/claude) - Anthropic's advanced language model
 - Compliance rules based on [NIST Cybersecurity Framework 2.0](https://www.nist.gov/cyberframework)
-- Inspired by real-world GRC Engineering challenges in enterprise cloud security
+- Inspired by real-world GRC challenges in enterprise cloud security
 
 ---
 
