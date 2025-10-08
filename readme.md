@@ -2,9 +2,10 @@
 
 **Automated Azure compliance scanning, analysis, and remediation powered by AI**
 
+**Developer:** Elija Ramos
+
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![NIST CSF 2.0](https://img.shields.io/badge/NIST-CSF%202.0-green.svg)](https://www.nist.gov/cyberframework)
-
 
 ## Overview
 
@@ -317,10 +318,6 @@ Contributions are welcome! Please:
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
