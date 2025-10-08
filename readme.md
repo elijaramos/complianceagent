@@ -684,7 +684,7 @@ GRC Engineering & Information Security
 
 For questions, collaboration, or professional inquiries:
 - GitHub Issues: Use this repository's issue tracker
-- Email: [your-email@example.com]
+- Email: elijaramosbowes@gmail.com
 
 ## Acknowledgments
 
