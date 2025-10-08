@@ -35,6 +35,7 @@ This project demonstrates core GRC Engineering principles:
 
 ## Architecture
 
+### System Architecture
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                   Azure Compliance Agent                     │
@@ -56,6 +57,305 @@ This project demonstrates core GRC Engineering principles:
                    │ Azure Resources │
                    └─────────────────┘
 ```
+
+### End-to-End Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 1: AUTHENTICATION & INITIALIZATION                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+[.env file] ──> Loads credentials ──> [Compliance Agent]
+                                           │
+                    ┌──────────────────────┴──────────────────────┐
+                    │                                              │
+                    v                                              v
+         [Azure Credentials]                          [Anthropic API Key]
+         - Tenant ID                                  - sk-ant-xxxxx
+         - Client ID                                       │
+         - Client Secret                                   │
+         - Subscription ID                                 │
+                    │                                      │
+                    v                                      v
+    [ClientSecretCredential] ──────────>     [Anthropic Client Object]
+         (azure-identity)                    (anthropic SDK)
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 2: COMPLIANCE SCANNING (READ-ONLY)                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+[Scanner] ──> Uses ClientSecretCredential ──> [Azure Management APIs]
+   │                                                    │
+   │                                                    v
+   │                              ┌────────────────────────────────────┐
+   │                              │ Azure Resource Manager (ARM)       │
+   │                              │ - ResourceManagementClient         │
+   │                              │ - StorageManagementClient          │
+   │                              │ - NetworkManagementClient          │
+   │                              └────────────────────────────────────┘
+   │                                                    │
+   │                              Returns: JSON resource configurations
+   │                                                    │
+   │ <──────────────────────────────────────────────────┘
+   │
+   v
+[NIST CSF Rules] <── Loads YAML rules ── [config/nist_csf_rules.yaml]
+   │
+   v
+[Rule Evaluation Engine]
+   │
+   │  For each resource:
+   │    - Check properties against rule criteria
+   │    - Evaluate operators (equals, not_contains, etc.)
+   │    - Mark violations with severity (CRITICAL, HIGH, MEDIUM, LOW)
+   │
+   v
+[Scan Results Object]
+{
+  "total_violations": 15,
+  "violations_by_severity": {"HIGH": 8, "MEDIUM": 5, "LOW": 2},
+  "results": [
+    {
+      "resource_id": "/subscriptions/xxx/...",
+      "resource_name": "mystorage",
+      "resource_type": "Microsoft.Storage/storageAccounts",
+      "rule_id": "PR.DS-1-storage-public-access",
+      "severity": "HIGH",
+      "description": "Storage accounts must disable public blob access",
+      "current_value": true,
+      "expected_value": false
+    },
+    ...
+  ]
+}
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 3: AI ANALYSIS (CLOUD API CALL)                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+[Scan Results] ──> [Analyzer] ──> Builds AI Prompt
+                                          │
+                                          v
+                              ┌───────────────────────────┐
+                              │ Claude AI Prompt          │
+                              ├───────────────────────────┤
+                              │ System: You are a cloud   │
+                              │ security expert...        │
+                              │                           │
+                              │ User: Analyze these       │
+                              │ findings: <violations>    │
+                              │ Generate remediation...   │
+                              └───────────────────────────┘
+                                          │
+                                          v
+[HTTPS POST] ──> api.anthropic.com/v1/messages
+                 Headers:
+                   - x-api-key: sk-ant-xxxxx
+                   - anthropic-version: 2023-06-01
+                   - content-type: application/json
+                 Body:
+                   {
+                     "model": "claude-sonnet-4-20250514",
+                     "max_tokens": 4096,
+                     "temperature": 0,
+                     "messages": [...]
+                   }
+                                          │
+                                          v
+                              [Claude AI Response]
+                                          │
+                                          v
+                              ┌───────────────────────────┐
+                              │ AI Remediation Plan       │
+                              ├───────────────────────────┤
+                              │ {                         │
+                              │   "summary": "...",       │
+                              │   "remediations": [       │
+                              │     {                     │
+                              │       "resource_id": ".", │
+                              │       "action": "...",    │
+                              │       "steps": [...]      │
+                              │     }                     │
+                              │   ]                       │
+                              │ }                         │
+                              └───────────────────────────┘
+                                          │
+                                          v
+                              [Stores to approvals/remediation_plan_<id>.json]
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 4: HUMAN APPROVAL WORKFLOW                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+[Agent] ──> Displays remediation plan to user
+              │
+              v
+         [CLI Output]
+         "Review these proposed changes:"
+         "1. Disable public access on storage 'mystorage'"
+         "2. Add encryption to storage 'otherstorage'"
+         ...
+              │
+              v
+         [User Input] ──> "Approve all? (yes/no/selective): "
+              │
+              │ User types: "yes"
+              │
+              v
+         [Approval Recorded]
+         - Saves to: approvals/approval_<workflow_id>.json
+         - Logs to: logs/workflow_<id>.jsonl
+              │
+              v
+         [Proceeds to remediation]
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 5: AUTOMATED REMEDIATION (WRITE OPERATIONS)                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+[Remediator] ──> For each approved remediation:
+                      │
+                      v
+                 [Pre-Flight Checks]
+                 - Verify resource exists
+                 - Check current state
+                 - Validate permissions
+                      │
+                      v
+                 [Create Rollback Snapshot]
+                 Saves to: rollback_snapshots/<resource_id>_<timestamp>.json
+                 {
+                   "resource_id": "...",
+                   "timestamp": "2025-10-07T10:30:00Z",
+                   "original_state": { <full resource config> }
+                 }
+                      │
+                      v
+                 [Execute Remediation via Azure SDK]
+                      │
+        ┌─────────────┴─────────────────────────────┐
+        │                                            │
+        v                                            v
+[Storage Account Update]              [NSG Rule Update]
+Uses: StorageManagementClient         Uses: NetworkManagementClient
+                │                                    │
+                v                                    v
+storage_client.storage_accounts       network_client.security_rules
+  .update(                              .begin_create_or_update(
+    resource_group,                       resource_group,
+    account_name,                         nsg_name,
+    {                                     rule_name,
+      "properties": {                     {
+        "allowBlobPublicAccess":            "properties": {
+          false                               "access": "Deny",
+      }                                       "sourceAddressPrefix": "0.0.0.0/0"
+    }                                       }
+  )                                       }
+                │                         )
+                │                                    │
+                v                                    v
+        [Azure ARM API]                    [Azure ARM API]
+        PUT /subscriptions/.../            PUT /subscriptions/.../
+            storageAccounts/mystorage          networkSecurityGroups/.../
+                                               securityRules/DenyInternet
+                │                                    │
+                └─────────────┬────────────────────-─┘
+                              v
+                     [Azure Resource Updated]
+                              │
+                              v
+                     [Log Success/Failure]
+                     logs/workflow_<id>.jsonl:
+                     {
+                       "timestamp": "...",
+                       "action": "remediation",
+                       "resource_id": "...",
+                       "status": "success",
+                       "changes_made": {...}
+                     }
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 6: POST-REMEDIATION VERIFICATION                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+[Agent] ──> Triggers re-scan
+              │
+              v
+         [Scanner] ──> (Same process as Step 2)
+              │        Queries Azure resources again
+              │
+              v
+         [New Scan Results]
+         {
+           "total_violations": 3,  // Reduced from 15
+           "violations_by_severity": {"MEDIUM": 2, "LOW": 1}
+         }
+              │
+              v
+         [Compare Before/After]
+         - Before: 15 violations
+         - After: 3 violations
+         - Fixed: 12 violations
+              │
+              v
+         [Generate Final Report]
+         Saves to: reports/compliance_report_<timestamp>.txt
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 7: AUDIT TRAIL & REPORTING                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+[All actions logged to multiple locations]
+    │
+    ├──> logs/workflow_<id>.jsonl (JSONL format for SIEM ingestion)
+    │    - Authentication events
+    │    - Scan results
+    │    - AI API calls
+    │    - User approvals
+    │    - Remediation actions
+    │    - Verification results
+    │
+    ├──> reports/compliance_report_<timestamp>.txt (Human-readable)
+    │    - Executive summary
+    │    - Violation details
+    │    - Remediation actions taken
+    │    - Before/after comparison
+    │
+    └──> rollback_snapshots/ (Disaster recovery)
+         - Original resource configurations
+         - Timestamp metadata
+         - Reversible change records
+```
+
+### Data Security & Authentication Flow
+
+**Authentication Layers:**
+1. **Azure Authentication**: Service Principal (OAuth 2.0 Client Credentials Flow)
+   - Tenant ID + Client ID + Client Secret → Azure AD Token
+   - Token used for all Azure Management API calls
+   - Least privilege: Reader (scan) + Contributor (remediate)
+
+2. **Anthropic Authentication**: API Key-based (Bearer Token)
+   - API Key in HTTP header: `x-api-key: sk-ant-xxxxx`
+   - HTTPS-only communication to api.anthropic.com
+   - No PII/credentials sent to Claude (only compliance metadata)
+
+3. **Local File Security**:
+   - `.env` file excluded from git (contains secrets)
+   - Rollback snapshots may contain sensitive config (stored locally only)
+   - Logs sanitized to avoid credential leakage
+
+**Data Flow Security:**
+- All cloud APIs use HTTPS/TLS 1.2+
+- Credentials loaded from environment variables (not hardcoded)
+- Azure tokens cached in-memory only (not persisted)
+- AI prompts sanitized to remove secrets before API calls
 
 ### Components
 
