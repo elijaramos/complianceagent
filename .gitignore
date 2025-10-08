@@ -31,6 +31,10 @@ build/
 *~
 .DS_Store
 
+# Claude Code
+# WHY: Local settings are user-specific, shared settings can be committed
+.claude/settings.local.json
+
 # Project Specific
 # WHY: These folders contain output/reports
 # They change constantly and can be regenerated
