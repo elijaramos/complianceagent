@@ -4,7 +4,7 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![NIST CSF 2.0](https://img.shields.io/badge/NIST-CSF%202.0-green.svg)](https://www.nist.gov/cyberframework)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 
 ## Overview
 
