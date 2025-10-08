@@ -1,0 +1,69 @@
+# Python
+# WHY: These are temporary files Python creates automatically
+# They can be regenerated, no need to save them
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.pytest_cache/
+
+# Environment Variables
+# WHY: Contains your passwords and API keys!
+# MOST IMPORTANT - Keeps secrets safe
+.env
+.env.local
+.env.*.local
+
+# IDE / Editor files
+# WHY: Every editor creates its own config files
+# Your editor settings shouldn't affect others
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project Specific
+# WHY: These folders contain output/reports
+# They change constantly and can be regenerated
+approvals/
+reports/
+*.log
+
+# Windows Specific
+# WHY: Windows creates these automatically
+# No need to track them
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Backup files
+# WHY: Text editors create these
+*~
+*.bak
+*.tmp
+*.swp
+
+# Azure / Cloud
+# WHY: Don't want to accidentally upload cloud credentials
+*.azureauth
+*.publishsettings
+
+# Jupyter Notebooks (if you use them later)
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Testing
+# WHY: Test output files
+.pytest_cache/
+.coverage
+htmlcov/

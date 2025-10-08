@@ -1,0 +1,87 @@
+# NIST Cybersecurity Framework (CSF) 2.0 Compliance Rules for Azure
+# These rules help organizations align their Azure infrastructure with NIST CSF controls
+# to manage cybersecurity risk and meet regulatory compliance requirements.
+
+rules:
+  # WHY: Encryption at rest protects data from unauthorized physical access to storage media.
+  # If an attacker gains physical access to storage infrastructure or if media is improperly
+  # disposed of, encryption ensures data remains unreadable without the encryption keys.
+  # This is critical for protecting sensitive data and meeting compliance requirements like
+  # GDPR, HIPAA, and PCI DSS.
+  - id: PR.DS-1-storage-encryption
+    nist_function: PROTECT
+    category: PR.DS-1
+    description: "Storage accounts must use encryption at rest"
+    resource_type: Microsoft.Storage/storageAccounts
+    severity: HIGH
+    check:
+      property: properties.encryption.services.blob.enabled
+      operator: equals
+      value: true
+
+  # WHY: Unrestricted inbound access (0.0.0.0/0) exposes resources directly to the internet,
+  # making them vulnerable to brute force attacks, DDoS, exploitation of vulnerabilities,
+  # and unauthorized access. Network Security Groups act as the first line of defense by
+  # limiting access to only trusted sources, implementing the principle of least privilege
+  # at the network layer.
+  - id: PR.AC-4-network-security
+    nist_function: PROTECT
+    category: PR.AC-4
+    resource_type: Microsoft.Network/networkSecurityGroups
+    description: "Network Security Groups must not allow unrestricted inbound access from the internet"
+    severity: CRITICAL
+    check:
+      property: properties.securityRules
+      operator: not_contains
+      value:
+        properties.sourceAddressPrefix: "0.0.0.0/0"
+        properties.access: "Allow"
+        properties.direction: "Inbound"
+
+  # WHY: Public blob access allows anonymous users to read data without authentication,
+  # potentially exposing sensitive information, intellectual property, or personal data
+  # to the entire internet. Data breaches from misconfigured storage accounts are common
+  # and can result in massive financial losses, regulatory fines, and reputational damage.
+  # Disabling public access enforces authentication requirements for all data access.
+  - id: PR.DS-1-storage-public-access
+    nist_function: PROTECT
+    category: PR.DS-1
+    description: "Storage accounts must disable public blob access"
+    resource_type: Microsoft.Storage/storageAccounts
+    severity: HIGH
+    check:
+      property: properties.allowBlobPublicAccess
+      operator: equals
+      value: false
+
+  # WHY: Classic administrators use legacy Azure Service Management (ASM) with overly broad
+  # permissions that bypass modern Azure RBAC controls. They cannot be managed with Privileged
+  # Identity Management (PIM), conditional access, or audit logging. This creates security
+  # blind spots and violates the principle of least privilege. Modern Azure RBAC provides
+  # granular, auditable access control with better governance capabilities.
+  - id: PR.AC-1-rbac
+    nist_function: PROTECT
+    category: PR.AC-1
+    description: "Subscription must not have classic administrators (use Azure RBAC instead)"
+    resource_type: Microsoft.Authorization/classicAdministrators
+    severity: MEDIUM
+    check:
+      property: count
+      operator: equals
+      value: 0
+
+  # WHY: Logging is essential for detecting security incidents, investigating breaches,
+  # meeting compliance audit requirements, and forensic analysis. Without storage account
+  # logging, organizations are blind to access patterns, data exfiltration attempts, and
+  # unauthorized modifications. Logs provide the evidence trail needed for incident response
+  # and are often required by regulations like SOX, HIPAA, and PCI DSS.
+  - id: DE.CM-7-logging
+    nist_function: DETECT
+    category: DE.CM-7
+    description: "Storage accounts must have diagnostic logging enabled"
+    resource_type: Microsoft.Storage/storageAccounts
+    severity: MEDIUM
+    check:
+      property: properties.logging.read.enabled
+      operator: equals
+      value: true
