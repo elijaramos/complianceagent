@@ -23,6 +23,7 @@ from azure.identity import ClientSecretCredential
 from azure.mgmt.storage import StorageManagementClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import ResourceManagementClient
+from azure.mgmt.monitor import MonitorManagementClient
 from azure.core.exceptions import AzureError, HttpResponseError
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -102,12 +103,17 @@ class AzureScanner:
             credential=self.credential,
             subscription_id=subscription_id
         )
-        
+
         self.resource_client = ResourceManagementClient(
             credential=self.credential,
             subscription_id=subscription_id
         )
-        
+
+        self.monitor_client = MonitorManagementClient(
+            credential=self.credential,
+            subscription_id=subscription_id
+        )
+
         # Load compliance rules from YAML
         # WHY YAML: Human-readable, supports comments, easy for security teams to maintain
         self.rules = self._load_rules(rules_path)
@@ -290,21 +296,21 @@ class AzureScanner:
         
         return violations
     
-    def _check_storage_rule(self, account: Any, rule: Dict[str, Any], 
+    def _check_storage_rule(self, account: Any, rule: Dict[str, Any],
                            resource_group: str) -> Optional[Dict[str, Any]]:
         """
         Check a single storage account against a compliance rule.
-        
+
         WHY SEPARATE METHOD:
         - Keeps rule checking logic isolated and testable
         - Allows easy addition of new rule types
         - Simplifies error handling for individual rules
-        
+
         Args:
             account: Azure StorageAccount object
             rule: Rule dictionary from YAML
             resource_group: Resource group name (for reporting)
-            
+
         Returns:
             Violation dictionary if rule failed, None if passed
         """
@@ -312,11 +318,16 @@ class AzureScanner:
         property_path = check.get('property')
         operator = check.get('operator')
         expected_value = check.get('value')
-        
-        # Navigate nested property path (e.g., "properties.encryption.services.blob.enabled")
-        # WHY: Azure API responses have deeply nested structures
-        actual_value = self._get_nested_property(account, property_path)
-        
+
+        # Special case: diagnostic_settings requires Monitor API call
+        # WHY SPECIAL HANDLING: Diagnostic settings aren't a property of StorageAccount object
+        if property_path == 'diagnostic_settings':
+            actual_value = self._check_diagnostic_settings(account, resource_group)
+        else:
+            # Navigate nested property path (e.g., "encryption.services.blob.enabled")
+            # WHY: Azure API responses have deeply nested structures
+            actual_value = self._get_nested_property(account, property_path)
+
         # Evaluate rule based on operator
         is_compliant = self._evaluate_rule(actual_value, operator, expected_value)
         
@@ -336,7 +347,61 @@ class AzureScanner:
             }
         
         return None
-    
+
+    def _check_diagnostic_settings(self, account: Any, resource_group: str) -> bool:
+        """
+        Check if diagnostic settings are enabled for a storage account.
+
+        WHY DIAGNOSTIC SETTINGS:
+        - Required for security incident detection and forensics
+        - Logs all access attempts, successful and failed
+        - Compliance requirement for SOX, HIPAA, PCI DSS
+        - Enables threat detection and anomaly analysis
+
+        Azure Monitor Pattern:
+        - Diagnostic settings are managed separately from the resource itself
+        - Can send logs to: Log Analytics, Storage Account, Event Hub
+        - Different log categories: StorageRead, StorageWrite, StorageDelete
+
+        Args:
+            account: Azure StorageAccount object
+            resource_group: Resource group name
+
+        Returns:
+            True if diagnostic logging is enabled, False otherwise
+        """
+        try:
+            # Build full ARM resource ID for the storage account
+            # WHY FULL RESOURCE ID: Monitor API requires complete Azure Resource Manager path
+            resource_id = (
+                f"/subscriptions/{self.subscription_id}"
+                f"/resourceGroups/{resource_group}"
+                f"/providers/Microsoft.Storage/storageAccounts/{account.name}"
+            )
+
+            # Query Monitor API for diagnostic settings
+            # WHY list(): A resource can have multiple diagnostic settings (different destinations)
+            diagnostic_settings = self.monitor_client.diagnostic_settings.list(resource_id)
+
+            # Check if any diagnostic setting has logging enabled
+            if hasattr(diagnostic_settings, 'value'):
+                for setting in diagnostic_settings.value:
+                    # Check if logs are configured
+                    if setting.logs:
+                        for log_category in setting.logs:
+                            # If ANY log category is enabled, consider it compliant
+                            if log_category.enabled:
+                                return True
+
+            # No diagnostic settings found or none have logging enabled
+            return False
+
+        except Exception as e:
+            # If we can't check (permissions, API error), assume not configured
+            # WHY ASSUME FALSE: Fail secure - better to flag as violation than miss it
+            print(f"  ⚠ Could not check diagnostic settings for {account.name}: {e}")
+            return False
+
     def _scan_nsgs(self) -> List[Dict[str, Any]]:
         """
         Scan all Network Security Groups for compliance violations.

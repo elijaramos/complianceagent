@@ -23,6 +23,8 @@ from pathlib import Path
 
 from azure.identity import ClientSecretCredential
 from azure.mgmt.storage import StorageManagementClient
+from azure.mgmt.monitor import MonitorManagementClient
+from azure.mgmt.monitor.models import DiagnosticSettingsResource, LogSettings
 
 # Import configuration settings
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -104,17 +106,22 @@ class AzureRemediator:
             credential=self.credential,
             subscription_id=subscription_id
         )
-        
+
         self.network_client = NetworkManagementClient(
             credential=self.credential,
             subscription_id=subscription_id
         )
-        
+
         self.resource_client = ResourceManagementClient(
             credential=self.credential,
             subscription_id=subscription_id
         )
-        
+
+        self.monitor_client = MonitorManagementClient(
+            credential=self.credential,
+            subscription_id=subscription_id
+        )
+
         print(f"✓ Azure Remediator initialized for subscription: {subscription_id}")
     
     def remediate_storage_encryption(self, resource_group: str, 
@@ -438,76 +445,97 @@ class AzureRemediator:
             print(f"  ✗ {msg}")
             return (False, msg)
     
-    def enable_storage_logging(self, resource_group: str, 
+    def enable_storage_logging(self, resource_group: str,
                               account_name: str) -> Tuple[bool, str]:
         """
-        Enable diagnostic logging for storage account blob service.
-        
+        Enable diagnostic logging for storage account using Azure Monitor.
+
         WHY THIS MATTERS:
         - Logging is required for security incident investigation
         - Provides audit trail of who accessed what data and when
         - Required by SOX, HIPAA, PCI DSS, and most compliance frameworks
         - Enables detection of data exfiltration and unauthorized access
-        
-        Azure SDK Pattern:
-        - Storage logging is configured at the service level (blob, file, queue, table)
-        - Uses BlobServiceProperties to configure logging
-        - Logs are stored in $logs container in same storage account
-        
+
+        Azure Monitor Pattern:
+        - Diagnostic settings are created via MonitorManagementClient
+        - Can send logs to: Log Analytics, Storage Account, Event Hub
+        - Logs all read, write, delete operations across blob/file/queue/table
+
         WHAT GETS LOGGED:
         - Read, write, delete operations
         - Authentication method (SAS, account key, AAD)
         - Client IP address
         - Request/response details
-        
+        - Failed authentication attempts
+
         Args:
             resource_group: Resource group name
             account_name: Storage account name
-            
+
         Returns:
             Tuple of (success: bool, message: str)
         """
-        print(f"\nEnabling storage logging: {account_name}")
-        
+        print(f"\nEnabling diagnostic logging: {account_name}")
+
         try:
-            # Get current blob service properties
-            # WHY: Check existing logging configuration
-            print(f"  Fetching blob service properties...")
-            
-            # Azure SDK Pattern: Blob service properties are separate from account properties
-            # Each storage service (blob, file, queue, table) has its own properties
-            blob_properties = self.storage_client.blob_services.get_service_properties(
-                resource_group_name=resource_group,
-                account_name=account_name,
-                blob_services_name='default'  # Always 'default'
+            # Build full resource ID
+            resource_id = (
+                f"/subscriptions/{self.subscription_id}"
+                f"/resourceGroups/{resource_group}"
+                f"/providers/Microsoft.Storage/storageAccounts/{account_name}"
             )
-            
-            # Check if logging is already enabled
-            # Note: Azure Storage Analytics logging is legacy, modern approach uses Diagnostic Settings
-            # This enables the basic storage analytics logging
-            print(f"  Configuring blob service logging...")
-            
-            # Azure SDK Pattern: Use set_service_properties to update blob service config
-            # WHY: Separate from account-level properties
+
+            print(f"  Checking existing diagnostic settings...")
+
+            # Check if diagnostic settings already exist
             try:
-                # Note: Modern approach would use Monitor Diagnostic Settings
-                # But for basic compliance, storage analytics logging is sufficient
-                # This would require azure-mgmt-monitor package for full implementation
-                
-                print(f"  ℹ Note: Storage Analytics logging is legacy")
-                print(f"  ℹ Recommend configuring Diagnostic Settings via Azure Portal or azure-mgmt-monitor")
-                print(f"  ✓ Blob service properties validated")
-                
-                # For this implementation, we verify the service is accessible
-                # Full logging setup requires azure-mgmt-monitor which wasn't in requirements
-                return (True, f"Storage account '{account_name}' blob service is accessible. "
-                             f"Configure Diagnostic Settings for comprehensive logging.")
-                
-            except HttpResponseError as e:
-                msg = f"Failed to configure blob service: {e.message}"
-                print(f"  ✗ {msg}")
-                return (False, msg)
-                
+                existing_settings = self.monitor_client.diagnostic_settings.list(resource_id)
+                if hasattr(existing_settings, 'value') and existing_settings.value:
+                    for setting in existing_settings.value:
+                        if setting.logs:
+                            for log in setting.logs:
+                                if log.enabled:
+                                    return (True, f"Diagnostic logging already enabled for '{account_name}'")
+            except Exception:
+                pass  # No existing settings, we'll create new ones
+
+            print(f"  Creating diagnostic settings...")
+
+            # Create diagnostic setting with logging enabled
+            # WHY: Sends all storage operation logs to built-in storage account logging
+            diagnostic_setting = DiagnosticSettingsResource(
+                storage_account_id=resource_id,  # Store logs in the same storage account
+                logs=[
+                    LogSettings(
+                        category="StorageRead",
+                        enabled=True,
+                        retention_policy=None  # Keep logs indefinitely
+                    ),
+                    LogSettings(
+                        category="StorageWrite",
+                        enabled=True,
+                        retention_policy=None
+                    ),
+                    LogSettings(
+                        category="StorageDelete",
+                        enabled=True,
+                        retention_policy=None
+                    )
+                ]
+            )
+
+            # Create the diagnostic setting
+            # WHY: Uses Monitor API to configure centralized logging
+            self.monitor_client.diagnostic_settings.create_or_update(
+                resource_uri=resource_id,
+                name="compliance-agent-logging",  # Diagnostic setting name
+                parameters=diagnostic_setting
+            )
+
+            print(f"  ✓ Diagnostic logging enabled successfully")
+            print(f"  📍 Azure Portal: Monitor → Diagnostic settings → View logs")
+            return (True, f"Successfully enabled diagnostic logging for '{account_name}'")
+
         except ResourceNotFoundError:
             msg = f"Storage account '{account_name}' not found in resource group '{resource_group}'"
             print(f"  ✗ {msg}")
