@@ -168,7 +168,21 @@ class ClaudeAnalyzer:
             
             # Extract response text
             response_text = response.content[0].text
-            
+
+            # Strip markdown code blocks if present
+            # Claude sometimes wraps JSON in ```json ... ```
+            if response_text.strip().startswith('```'):
+                # Remove opening ```json or ```
+                response_text = response_text.strip()
+                if response_text.startswith('```json'):
+                    response_text = response_text[7:]
+                elif response_text.startswith('```'):
+                    response_text = response_text[3:]
+                # Remove closing ```
+                if response_text.endswith('```'):
+                    response_text = response_text[:-3]
+                response_text = response_text.strip()
+
             # Parse JSON response
             # WHY JSON: Enables automation, structured data, easy integration
             try:
