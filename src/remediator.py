@@ -23,8 +23,7 @@ from pathlib import Path
 
 from azure.identity import ClientSecretCredential
 from azure.mgmt.storage import StorageManagementClient
-from azure.mgmt.monitor import MonitorManagementClient
-from azure.mgmt.monitor.models import DiagnosticSettingsResource, LogSettings
+from azure.storage.blob import BlobServiceClient
 
 # Import configuration settings
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -113,11 +112,6 @@ class AzureRemediator:
         )
 
         self.resource_client = ResourceManagementClient(
-            credential=self.credential,
-            subscription_id=subscription_id
-        )
-
-        self.monitor_client = MonitorManagementClient(
             credential=self.credential,
             subscription_id=subscription_id
         )
@@ -448,7 +442,7 @@ class AzureRemediator:
     def enable_storage_logging(self, resource_group: str,
                               account_name: str) -> Tuple[bool, str]:
         """
-        Enable diagnostic logging for storage account using Azure Monitor.
+        Enable Storage Analytics logging for storage account.
 
         WHY THIS MATTERS:
         - Logging is required for security incident investigation
@@ -456,10 +450,11 @@ class AzureRemediator:
         - Required by SOX, HIPAA, PCI DSS, and most compliance frameworks
         - Enables detection of data exfiltration and unauthorized access
 
-        Azure Monitor Pattern:
-        - Diagnostic settings are created via MonitorManagementClient
-        - Can send logs to: Log Analytics, Storage Account, Event Hub
-        - Logs all read, write, delete operations across blob/file/queue/table
+        Storage Analytics Pattern:
+        - Uses BlobServiceClient to set service properties
+        - Logs stored in $logs container within same storage account
+        - No additional infrastructure (Log Analytics workspace) required
+        - Logs all read, write, delete operations
 
         WHAT GETS LOGGED:
         - Read, write, delete operations
@@ -475,71 +470,64 @@ class AzureRemediator:
         Returns:
             Tuple of (success: bool, message: str)
         """
-        print(f"\nEnabling diagnostic logging: {account_name}")
+        print(f"\nEnabling Storage Analytics logging: {account_name}")
 
         try:
-            # Build full resource ID for blob service
-            # IMPORTANT: Diagnostic settings must be created at the service level
-            # (blobServices/default), not at the storage account level
-            storage_account_id = (
-                f"/subscriptions/{self.subscription_id}"
-                f"/resourceGroups/{resource_group}"
-                f"/providers/Microsoft.Storage/storageAccounts/{account_name}"
+            # Get storage account keys to authenticate BlobServiceClient
+            print(f"  Retrieving storage account keys...")
+            keys = self.storage_client.storage_accounts.list_keys(
+                resource_group_name=resource_group,
+                account_name=account_name
             )
 
-            blob_service_id = f"{storage_account_id}/blobServices/default"
+            if not keys.keys or len(keys.keys) == 0:
+                return (False, f"No access keys found for storage account '{account_name}'")
 
-            print(f"  Checking existing diagnostic settings...")
+            account_key = keys.keys[0].value
 
-            # Check if diagnostic settings already exist
+            # Create BlobServiceClient using account key
+            # WHY: Storage Analytics is configured via data plane API, not management plane
+            account_url = f"https://{account_name}.blob.core.windows.net"
+            blob_service_client = BlobServiceClient(
+                account_url=account_url,
+                credential=account_key
+            )
+
+            print(f"  Checking existing logging configuration...")
+
+            # Get current service properties to check if logging already enabled
             try:
-                existing_settings = self.monitor_client.diagnostic_settings.list(blob_service_id)
-                if hasattr(existing_settings, 'value') and existing_settings.value:
-                    for setting in existing_settings.value:
-                        if setting.logs:
-                            for log in setting.logs:
-                                if log.enabled:
-                                    return (True, f"Diagnostic logging already enabled for '{account_name}'")
+                properties = blob_service_client.get_service_properties()
+                if (properties.get('analytics_logging') and
+                    properties['analytics_logging'].get('read') and
+                    properties['analytics_logging'].get('write') and
+                    properties['analytics_logging'].get('delete')):
+                    return (True, f"Storage Analytics logging already enabled for '{account_name}'")
             except Exception:
-                pass  # No existing settings, we'll create new ones
+                pass  # If we can't get properties, proceed to enable
 
-            print(f"  Creating diagnostic settings for blob service...")
+            print(f"  Enabling Storage Analytics logging...")
 
-            # Create diagnostic setting with logging enabled
-            # WHY: Sends all blob storage operation logs to Log Analytics
-            # NOTE: Cannot send logs to the same storage account being monitored
-            diagnostic_setting = DiagnosticSettingsResource(
-                logs=[
-                    LogSettings(
-                        category="StorageRead",
-                        enabled=True,
-                        retention_policy=None  # Retention not supported for storage
-                    ),
-                    LogSettings(
-                        category="StorageWrite",
-                        enabled=True,
-                        retention_policy=None
-                    ),
-                    LogSettings(
-                        category="StorageDelete",
-                        enabled=True,
-                        retention_policy=None
-                    )
-                ]
+            # Enable logging for all operations (read, write, delete)
+            # WHY: Comprehensive logging for security monitoring
+            from azure.storage.blob import BlobAnalyticsLogging, RetentionPolicy
+
+            logging = BlobAnalyticsLogging(
+                version='1.0',
+                delete=True,  # Log delete operations
+                read=True,    # Log read operations
+                write=True,   # Log write operations
+                retention_policy=RetentionPolicy(enabled=True, days=90)  # Keep logs for 90 days
             )
 
-            # Create the diagnostic setting at blob service level
-            # WHY: Uses Monitor API to configure centralized logging
-            self.monitor_client.diagnostic_settings.create_or_update(
-                resource_uri=blob_service_id,  # Target blob service, not storage account
-                name="compliance-agent-logging",  # Diagnostic setting name
-                parameters=diagnostic_setting
-            )
+            # Set service properties with logging enabled
+            blob_service_client.set_service_properties(analytics_logging=logging)
 
-            print(f"  ✓ Diagnostic logging enabled successfully")
-            print(f"  📍 Azure Portal: Storage account → Monitoring → Diagnostic settings (blob)")
-            print(f"  ℹ  Logs will be collected by Azure Monitor (viewable in Activity Log)")
-            return (True, f"Successfully enabled diagnostic logging for '{account_name}'")
+            print(f"  ✓ Storage Analytics logging enabled successfully")
+            print(f"  📍 Azure Portal: Storage account → Monitoring → Diagnostic settings (classic)")
+            print(f"  ℹ  Logs stored in $logs container within the storage account")
+            print(f"  ℹ  Retention: 90 days")
+            return (True, f"Successfully enabled Storage Analytics logging for '{account_name}'")
 
         except ResourceNotFoundError:
             msg = f"Storage account '{account_name}' not found in resource group '{resource_group}'"

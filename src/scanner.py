@@ -23,7 +23,7 @@ from azure.identity import ClientSecretCredential
 from azure.mgmt.storage import StorageManagementClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import ResourceManagementClient
-from azure.mgmt.monitor import MonitorManagementClient
+from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import AzureError, HttpResponseError
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -105,11 +105,6 @@ class AzureScanner:
         )
 
         self.resource_client = ResourceManagementClient(
-            credential=self.credential,
-            subscription_id=subscription_id
-        )
-
-        self.monitor_client = MonitorManagementClient(
             credential=self.credential,
             subscription_id=subscription_id
         )
@@ -350,59 +345,61 @@ class AzureScanner:
 
     def _check_diagnostic_settings(self, account: Any, resource_group: str) -> bool:
         """
-        Check if diagnostic settings are enabled for a storage account.
+        Check if Storage Analytics logging is enabled for a storage account.
 
-        WHY DIAGNOSTIC SETTINGS:
+        WHY STORAGE ANALYTICS LOGGING:
         - Required for security incident detection and forensics
         - Logs all access attempts, successful and failed
         - Compliance requirement for SOX, HIPAA, PCI DSS
         - Enables threat detection and anomaly analysis
 
-        Azure Monitor Pattern:
-        - Diagnostic settings are managed separately from the resource itself
-        - Can send logs to: Log Analytics, Storage Account, Event Hub
-        - Different log categories: StorageRead, StorageWrite, StorageDelete
+        Storage Analytics Pattern:
+        - Uses BlobServiceClient to get service properties
+        - Logs stored in $logs container within storage account
+        - Checks for read, write, delete logging enabled
 
         Args:
             account: Azure StorageAccount object
             resource_group: Resource group name
 
         Returns:
-            True if diagnostic logging is enabled, False otherwise
+            True if Storage Analytics logging is enabled, False otherwise
         """
         try:
-            # Build full ARM resource ID for blob service
-            # IMPORTANT: Diagnostic settings are at service level (blobServices/default)
-            # not at storage account level
-            storage_account_id = (
-                f"/subscriptions/{self.subscription_id}"
-                f"/resourceGroups/{resource_group}"
-                f"/providers/Microsoft.Storage/storageAccounts/{account.name}"
+            # Get storage account keys to authenticate BlobServiceClient
+            keys = self.storage_client.storage_accounts.list_keys(
+                resource_group_name=resource_group,
+                account_name=account.name
             )
 
-            blob_service_id = f"{storage_account_id}/blobServices/default"
+            if not keys.keys or len(keys.keys) == 0:
+                return False
 
-            # Query Monitor API for diagnostic settings at blob service level
-            # WHY list(): A resource can have multiple diagnostic settings (different destinations)
-            diagnostic_settings = self.monitor_client.diagnostic_settings.list(blob_service_id)
+            account_key = keys.keys[0].value
 
-            # Check if any diagnostic setting has logging enabled
-            if hasattr(diagnostic_settings, 'value'):
-                for setting in diagnostic_settings.value:
-                    # Check if logs are configured
-                    if setting.logs:
-                        for log_category in setting.logs:
-                            # If ANY log category is enabled, consider it compliant
-                            if log_category.enabled:
-                                return True
+            # Create BlobServiceClient using account key
+            account_url = f"https://{account.name}.blob.core.windows.net"
+            blob_service_client = BlobServiceClient(
+                account_url=account_url,
+                credential=account_key
+            )
 
-            # No diagnostic settings found or none have logging enabled
+            # Get service properties to check logging configuration
+            properties = blob_service_client.get_service_properties()
+
+            # Check if logging is enabled for any operation type
+            if properties.get('analytics_logging'):
+                logging = properties['analytics_logging']
+                # Compliant if ANY logging is enabled (read, write, or delete)
+                if logging.get('read') or logging.get('write') or logging.get('delete'):
+                    return True
+
             return False
 
         except Exception as e:
             # If we can't check (permissions, API error), assume not configured
             # WHY ASSUME FALSE: Fail secure - better to flag as violation than miss it
-            print(f"  ⚠ Could not check diagnostic settings for {account.name}: {e}")
+            print(f"  ⚠ Could not check Storage Analytics logging for {account.name}: {e}")
             return False
 
     def _scan_nsgs(self) -> List[Dict[str, Any]]:
