@@ -176,9 +176,9 @@ class ComplianceAgent:
         try:
             # STEP 1: Scan Azure environment for violations
             # WHY FIRST: Need to know what's broken before we can fix it
-            print("\n" + "🔍 " + "="*76)
-            print("STEP 1: SCANNING AZURE ENVIRONMENT")
-            print("="*80)
+            print("\n" + "="*80)
+            print("🔍 STEP 1: SCANNING AZURE ENVIRONMENT")
+            print("="*80 + "\n")
             self.current_state = "SCANNING"
             self._log_event("SCAN_STARTED", {})
             
@@ -204,9 +204,9 @@ class ComplianceAgent:
             
             # STEP 2: Analyze findings with Claude AI
             # WHY: AI generates detailed remediation plans with context
-            print("\n" + "🤖 " + "="*76)
-            print("STEP 2: ANALYZING FINDINGS WITH CLAUDE AI")
-            print("="*80)
+            print("\n" + "="*80)
+            print("🤖 STEP 2: ANALYZING FINDINGS WITH CLAUDE AI")
+            print("="*80 + "\n")
             self.current_state = "ANALYZING"
             self._log_event("ANALYSIS_STARTED", {})
             
@@ -220,9 +220,9 @@ class ComplianceAgent:
             
             # STEP 3: Request human approval
             # WHY: Security changes require human oversight (governance)
-            print("\n" + "👤 " + "="*76)
-            print("STEP 3: REQUESTING HUMAN APPROVAL")
-            print("="*80)
+            print("\n" + "="*80)
+            print("👤 STEP 3: REQUESTING HUMAN APPROVAL")
+            print("="*80 + "\n")
             self.current_state = "PENDING_APPROVAL"
             self._log_event("APPROVAL_REQUESTED", {})
             
@@ -247,9 +247,9 @@ class ComplianceAgent:
             
             # STEP 4: Execute approved remediations
             # WHY: Actually fix the compliance violations
-            print("\n" + "⚙️ " + "="*76)
-            print("STEP 4: EXECUTING REMEDIATIONS")
-            print("="*80)
+            print("\n" + "="*80)
+            print("⚙️  STEP 4: EXECUTING REMEDIATIONS")
+            print("="*80 + "\n")
             self.current_state = "EXECUTING"
             self._log_event("EXECUTION_STARTED", {})
             
@@ -273,9 +273,9 @@ class ComplianceAgent:
             
             # STEP 5: Verify compliance improved
             # WHY: Measure effectiveness of remediations (before/after)
-            print("\n" + "🔍 " + "="*76)
-            print("STEP 5: VERIFYING COMPLIANCE IMPROVEMENT")
-            print("="*80)
+            print("\n" + "="*80)
+            print("🔍 STEP 5: VERIFYING COMPLIANCE IMPROVEMENT")
+            print("="*80 + "\n")
             self.current_state = "VERIFYING"
             self._log_event("VERIFICATION_STARTED", {})
             
@@ -294,9 +294,9 @@ class ComplianceAgent:
             
             # STEP 6: Generate final report
             # WHY: Creates audit trail and documentation
-            print("\n" + "📄 " + "="*76)
-            print("STEP 6: GENERATING FINAL REPORT")
-            print("="*80)
+            print("\n" + "="*80)
+            print("📄 STEP 6: GENERATING FINAL REPORT")
+            print("="*80 + "\n")
             self.current_state = "REPORTING"
             
             report_path = self._generate_final_report(
@@ -316,13 +316,13 @@ class ComplianceAgent:
             })
             
             print("\n" + "="*80)
-            print("✓ COMPLIANCE WORKFLOW COMPLETED SUCCESSFULLY")
+            print("✅ COMPLIANCE WORKFLOW COMPLETED SUCCESSFULLY")
             print("="*80)
-            print(f"Workflow ID: {self.workflow_id}")
-            print(f"Duration: {self._calculate_duration(workflow_result)}")
-            print(f"Violations Fixed: {before_scan['total_violations'] - after_scan['total_violations']}")
-            print(f"Report: {report_path}")
-            print("="*80 + "\n")
+            print(f"\n  Workflow ID:       {self.workflow_id}")
+            print(f"  Duration:          {self._calculate_duration(workflow_result)}")
+            print(f"  Violations Fixed:  {before_scan['total_violations'] - after_scan['total_violations']}")
+            print(f"  Report:            {report_path}")
+            print("\n" + "="*80 + "\n")
             
             return workflow_result
             

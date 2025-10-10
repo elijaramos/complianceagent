@@ -284,30 +284,9 @@ def full_cycle(credentials: dict) -> None:
         print("\n🔄 Starting workflow...")
         result = agent.run_full_cycle()
         
-        # Display summary
-        print("\n" + "="*80)
-        print("📊 WORKFLOW SUMMARY")
-        print("="*80)
-        print(f"\nWorkflow ID: {result['workflow_id']}")
-        print(f"Status: {result['status']}")
-        
-        if result['status'] in ['COMPLETE', 'COMPLETE_NO_VIOLATIONS']:
-            print("✅ Workflow completed successfully!")
-            
-            if 'before_scan' in result and 'after_scan' in result:
-                before = result['before_scan']['total_violations']
-                after = result['after_scan']['total_violations']
-                fixed = before - after
-                
-                print(f"\n📈 Results:")
-                print(f"   Violations Before: {before}")
-                print(f"   Violations After:  {after}")
-                print(f"   Fixed: {fixed}")
-            
-            if 'report_path' in result:
-                print(f"\n📄 Report: {result['report_path']}")
-        else:
-            print(f"⚠️  Workflow ended with status: {result['status']}")
+        # Check for errors/interruptions
+        if result['status'] not in ['COMPLETE', 'COMPLETE_NO_VIOLATIONS']:
+            print(f"\n⚠️  Workflow ended with status: {result['status']}")
         
     except KeyboardInterrupt:
         print("\n\n⚠️  Workflow interrupted by user")
