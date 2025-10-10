@@ -16,6 +16,7 @@ WHY USE AI FOR SECURITY ANALYSIS:
 import os
 import sys
 import json
+import re
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from pathlib import Path
@@ -508,15 +509,25 @@ Return ONLY valid JSON (no markdown, no explanations outside JSON)."""
         # Check 5: Command safety validation
         # WHY: Prevents destructive commands (delete, purge, destroy)
         azure_commands = remediation.get('azure_commands', [])
-        dangerous_keywords = ['delete', 'purge', 'destroy', 'remove-azresource']
-        
+        # Use word boundaries to avoid false positives (e.g., "create" contains "delete")
+        dangerous_patterns = [
+            r'\bdelete\b',
+            r'\bpurge\b',
+            r'\bdestroy\b',
+            r'\bremove-azresource\b',
+            r'\brm\s+',  # Unix rm command
+            r'\bdrop\b'  # SQL drop
+        ]
+
         for cmd in azure_commands:
-            if any(keyword in cmd.lower() for keyword in dangerous_keywords):
-                validation['blockers'].append(
-                    f"Dangerous command detected: {cmd[:100]}"
-                )
-                validation['is_safe'] = False
-                validation['risk_score'] += 40
+            for pattern in dangerous_patterns:
+                if re.search(pattern, cmd.lower()):
+                    validation['blockers'].append(
+                        f"Dangerous command detected: {cmd[:100]}"
+                    )
+                    validation['is_safe'] = False
+                    validation['risk_score'] += 40
+                    break
         
         # Check 6: Resource context validation
         # WHY: Ensures resource hasn't changed since scan

@@ -280,7 +280,8 @@ class AzureRemediator:
             # Verify the change
             if not updated_account.allow_blob_public_access:
                 print(f"  ✓ Public access disabled successfully")
-                print(f"  ⚠ Note: Existing anonymous access will be blocked")
+                print(f"  📍 Azure Portal UI: Settings → Configuration → 'Allow Blob anonymous access' = Disabled")
+                print(f"  ⚠  Note: Existing anonymous access will be blocked")
                 return (True, f"Successfully disabled public access for '{account_name}'")
             else:
                 return (False, f"Update completed but public access not confirmed disabled for '{account_name}'")
