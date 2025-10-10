@@ -8,38 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Azure Monitor diagnostic logging support for storage accounts
-  - Full implementation of NIST CSF DE.CM-7 (Continuous Monitoring)
-  - Scanner now checks diagnostic settings via MonitorManagementClient
-  - Remediator creates diagnostic settings for Read/Write/Delete operations
-  - Logs stored in same storage account with indefinite retention
-  - Required for SOX, HIPAA, PCI DSS compliance
+- Nothing yet - check back for future features!
+
+## [1.1.0] - 2025-01-10
+
+### Added
+- **Azure Monitor diagnostic logging support** 🎉
+  - Full NIST CSF DE.CM-7 (Continuous Monitoring) implementation
+  - Scanner checks diagnostic settings via MonitorManagementClient
+  - Remediator creates diagnostic settings for StorageRead/Write/Delete
+  - Added `azure-mgmt-monitor==6.0.2` dependency
+- **Professional Excel reports** with color-coded severity levels
+- **Technical implementation details** in remediation plans
+- **Azure Portal UI guidance** after successful remediations
 
 ### Fixed
-- Scanner property paths now match Azure Python SDK snake_case format
-  - Fixed `allow_blob_public_access` detection (was checking wrong property)
-  - Fixed `encryption.services.blob.enabled` path (removed incorrect `properties.` prefix)
-  - Scanner now correctly detects remediated resources as compliant
-- Dangerous command detection no longer triggers false positives
-  - Changed from substring matching to regex word boundaries
-  - `diagnostic-settings create` no longer blocked (was flagged due to "delete" substring)
-- JSON parsing now handles markdown code blocks from Claude AI
-  - Strips ` ```json ` fences before parsing
-  - Prevents JSONDecodeError when Claude wraps responses
+- **Scanner property paths** now use correct Azure Python SDK snake_case
+  - Fixed `allow_blob_public_access` and `encryption` detection
+  - Violations now clear after successful remediation
+- **Dangerous command detection** false positives eliminated
+- **JSON parsing** now handles Claude AI markdown code blocks
+- **NameError** in analyzer.py variable reference
 
 ### Changed
-- Enhanced terminal output readability
-  - Cleaner step headers with consistent formatting
-  - Better visual hierarchy with proper spacing
-  - Removed redundant workflow summary
-  - Aligned final summary fields
-- Renamed "Rule" to "NIST CSF Rule" throughout UI
-  - Clearer labeling in remediation previews
-  - Updated approval requests and reports
-- Added technical implementation details to remediation plans
-  - Shows exact Azure property changes before approval
-  - Helps users understand what will be modified
-  - Includes Azure Portal UI navigation guidance
+- **Enhanced terminal output** readability and formatting
+- **Renamed "Rule" to "NIST CSF Rule"** throughout UI
+- **Added CHANGELOG.md** following Keep a Changelog format
+- **Documentation improvements** with end-to-end data flow diagrams
 
 ## [1.0.0] - 2025-01-10
 

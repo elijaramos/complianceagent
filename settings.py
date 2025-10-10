@@ -134,8 +134,8 @@ def get_azure_config() -> dict:
 # VERSION INFORMATION
 # =============================================================================
 
-APPLICATION_VERSION = "1.0.0"
+APPLICATION_VERSION = "1.1.0"
 APPLICATION_NAME = "Azure Compliance Agent"
 COMPLIANCE_FRAMEWORK = "NIST Cybersecurity Framework (CSF) 2.0"
-CONFIG_VERSION = "1.0.0"
-LAST_UPDATED = "2025-10-06"
+CONFIG_VERSION = "1.1.0"
+LAST_UPDATED = "2025-01-10"
