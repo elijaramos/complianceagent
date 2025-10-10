@@ -15,7 +15,7 @@ rules:
     resource_type: Microsoft.Storage/storageAccounts
     severity: HIGH
     check:
-      property: properties.encryption.services.blob.enabled
+      property: encryption.services.blob.enabled
       operator: equals
       value: true
 
@@ -50,7 +50,7 @@ rules:
     resource_type: Microsoft.Storage/storageAccounts
     severity: HIGH
     check:
-      property: properties.allowBlobPublicAccess
+      property: allow_blob_public_access
       operator: equals
       value: false
 
@@ -75,13 +75,23 @@ rules:
   # logging, organizations are blind to access patterns, data exfiltration attempts, and
   # unauthorized modifications. Logs provide the evidence trail needed for incident response
   # and are often required by regulations like SOX, HIPAA, and PCI DSS.
-  - id: DE.CM-7-logging
-    nist_function: DETECT
-    category: DE.CM-7
-    description: "Storage accounts must have diagnostic logging enabled"
-    resource_type: Microsoft.Storage/storageAccounts
-    severity: MEDIUM
-    check:
-      property: properties.logging.read.enabled
-      operator: equals
-      value: true
+  #
+  # NOTE: This rule is currently DISABLED because Azure Storage diagnostic logging is configured
+  # via Azure Monitor Diagnostic Settings (azure-mgmt-monitor package), not through storage
+  # account properties. The StorageManagementClient SDK doesn't expose diagnostic settings.
+  # To enable this rule, we need to:
+  # 1. Add azure-mgmt-monitor to requirements.txt
+  # 2. Create MonitorManagementClient in scanner
+  # 3. Query diagnostic_settings.list() for each storage account
+  # 4. Check if logging is enabled for blob/file/queue/table services
+  #
+  # - id: DE.CM-7-logging
+  #   nist_function: DETECT
+  #   category: DE.CM-7
+  #   description: "Storage accounts must have diagnostic logging enabled"
+  #   resource_type: Microsoft.Storage/storageAccounts
+  #   severity: MEDIUM
+  #   check:
+  #     property: diagnostic_settings  # Requires azure-mgmt-monitor
+  #     operator: not_equals
+  #     value: null
