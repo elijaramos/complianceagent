@@ -277,6 +277,7 @@ OUTPUT FORMAT (JSON):
       "rule_id": "Rule ID from scan",
       "severity": "CRITICAL|HIGH|MEDIUM|LOW",
       "risk_assessment": "Explain WHAT could happen if not fixed, WHO could exploit it, and WHAT data/services are at risk (2-3 sentences)",
+      "technical_implementation": "Explain EXACTLY what Azure configuration settings will be changed (e.g., 'Set allowBlobPublicAccess property to false on storage account', 'Update NSG rule to deny 0.0.0.0/0 inbound traffic on port 22'). Be specific about property names, values, and Azure resource properties being modified (2-3 sentences)",
       "remediation_steps": [
         "Step 1: Human-readable action",
         "Step 2: Human-readable action",
@@ -367,14 +368,19 @@ Return ONLY valid JSON (no markdown, no explanations outside JSON)."""
         lines.append("AFFECTED RESOURCE:")
         lines.append(f"  Name: {resource_name}")
         lines.append(f"  Resource Group: {resource_group}")
-        lines.append(f"  Compliance Rule: {finding_id}")
+        lines.append(f"  NIST CSF Rule: {finding_id}")
         lines.append("")
-        
+
         lines.append("RISK IF NOT REMEDIATED:")
         lines.append(f"  {risk}")
         lines.append("")
-        
-        lines.append("PROPOSED REMEDIATION:")
+
+        lines.append("TECHNICAL IMPLEMENTATION:")
+        technical_impl = remediation.get('technical_implementation', 'N/A')
+        lines.append(f"  {technical_impl}")
+        lines.append("")
+
+        lines.append("PROPOSED REMEDIATION STEPS:")
         for i, step in enumerate(steps, 1):
             lines.append(f"  {i}. {step}")
         lines.append("")

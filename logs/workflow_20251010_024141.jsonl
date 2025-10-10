@@ -1,0 +1,8 @@
+{"timestamp": "2025-10-10T02:41:41.759999", "workflow_id": "20251010_024141", "event_type": "INITIALIZED", "state": "INITIALIZED", "data": {"workflow_id": "20251010_024141", "timestamp": "2025-10-10T02:41:41.759999"}}
+{"timestamp": "2025-10-10T02:41:41.761999", "workflow_id": "20251010_024141", "event_type": "SCAN_STARTED", "state": "SCANNING", "data": {}}
+{"timestamp": "2025-10-10T02:41:44.034250", "workflow_id": "20251010_024141", "event_type": "SCAN_COMPLETED", "state": "SCANNING", "data": {"total_violations": 3, "by_severity": {"CRITICAL": 0, "HIGH": 2, "MEDIUM": 1, "LOW": 0}}}
+{"timestamp": "2025-10-10T02:41:44.035250", "workflow_id": "20251010_024141", "event_type": "ANALYSIS_STARTED", "state": "ANALYZING", "data": {}}
+{"timestamp": "2025-10-10T02:42:07.197200", "workflow_id": "20251010_024141", "event_type": "ANALYSIS_COMPLETED", "state": "ANALYZING", "data": {"remediations_generated": 3, "priority_order": ["PR.DS-1-storage-public-access", "PR.DS-1-storage-encryption", "DE.CM-7-logging"]}}
+{"timestamp": "2025-10-10T02:42:07.197200", "workflow_id": "20251010_024141", "event_type": "APPROVAL_REQUESTED", "state": "PENDING_APPROVAL", "data": {}}
+{"timestamp": "2025-10-10T02:43:18.478170", "workflow_id": "20251010_024141", "event_type": "APPROVAL_REJECTED", "state": "PENDING_APPROVAL", "data": {}}
+{"timestamp": "2025-10-10T02:43:18.478170", "workflow_id": "20251010_024141", "event_type": "WORKFLOW_CANCELLED", "state": "PENDING_APPROVAL", "data": {"reason": "No remediations approved"}}

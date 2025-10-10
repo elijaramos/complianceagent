@@ -389,8 +389,9 @@ class ComplianceAgent:
         for i, remediation in enumerate(remediations, 1):
             print(f"\n{i}. {remediation.get('resource_name', 'Unknown')} "
                   f"({remediation.get('severity', 'N/A')})")
-            print(f"   Rule: {remediation.get('rule_id', 'N/A')}")
+            print(f"   NIST CSF Rule: {remediation.get('rule_id', 'N/A')}")
             print(f"   Risk: {remediation.get('risk_assessment', 'N/A')[:100]}...")
+            print(f"   Implementation: {remediation.get('technical_implementation', 'N/A')[:100]}...")
             print(f"   Time: ~{remediation.get('estimated_time_minutes', '?')} minutes")
             
             # Save individual approval request to file
@@ -763,17 +764,17 @@ class ComplianceAgent:
                 lines.append("\nSuccessful Remediations:")
                 for i, result in enumerate(successes, 1):
                     lines.append(f"\n{i}. {result['resource_name']} ({result['severity']})")
-                    lines.append(f"   Rule: {result['rule_id']}")
+                    lines.append(f"   NIST CSF Rule: {result['rule_id']}")
                     lines.append(f"   Result: {result['message']}")
                     if result.get('rollback_snapshot'):
                         lines.append(f"   Rollback: {result['rollback_snapshot']}")
-            
+
             # Failed remediations
             if failures:
                 lines.append("\nFailed Remediations:")
                 for i, result in enumerate(failures, 1):
                     lines.append(f"\n{i}. {result['resource_name']} ({result['severity']})")
-                    lines.append(f"   Rule: {result['rule_id']}")
+                    lines.append(f"   NIST CSF Rule: {result['rule_id']}")
                     lines.append(f"   Error: {result['message']}")
         
         # After Scan Results (if available)
