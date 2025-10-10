@@ -15,13 +15,14 @@ Built to scan Azure infrastructure for security and compliance violations, the a
 
 ### Key Capabilities
 
-- **🔍 Automated Compliance Scanning**: Discovers misconfigurations across Azure resources (storage accounts, network security groups, etc.)
-- **🤖 AI-Powered Risk Analysis**: Leverages Claude AI to analyze findings, prioritize by risk severity, and generate contextual remediation plans
+- **🔍 Automated Compliance Scanning**: Discovers misconfigurations across Azure resources (storage accounts, network security groups, diagnostic settings, etc.)
+- **🤖 AI-Powered Risk Analysis**: Leverages Claude AI to analyze findings, prioritize by risk severity, and generate contextual remediation plans with technical implementation details
 - **✅ GRC Control Framework**: Human-in-the-loop approval workflow ensures no changes execute without explicit authorization—critical for SOX, HIPAA, and regulatory compliance
 - **⚙️ SDK-Based Remediation**: Uses Azure Python SDK (not CLI) for reliable, auditable, and repeatable resource updates
 - **🔄 Disaster Recovery Ready**: Creates rollback snapshots before each change to support incident response and business continuity
-- **📊 Audit-Ready Reporting**: Generates comprehensive compliance reports with before/after comparisons and complete audit trails
+- **📊 Audit-Ready Reporting**: Generates professional Excel reports with color-coded severity levels, before/after comparisons, and complete audit trails
 - **🛡️ NIST CSF 2.0 Aligned**: Maps controls directly to NIST Cybersecurity Framework categories (IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER)
+- **📋 Azure Monitor Integration**: Full diagnostic logging support for continuous monitoring and compliance (DE.CM-7)
 
 ### Why This Matters for GRC Engineering
 
@@ -43,7 +44,7 @@ This project demonstrates core GRC Engineering principles:
 │                                                              │
 │  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌─────────┐ │
 │  │ Scanner  │──>│ Analyzer │──>│   Agent   │──>│ Reports │ │
-│  │ (Azure)  │   │ (Claude) │   │(Workflow) │   │         │ │
+│  │ (Azure)  │   │ (Claude) │   │(Workflow) │   │ (Excel) │ │
 │  └──────────┘   └──────────┘   └──────────┘   └─────────┘ │
 │       │              │               │                      │
 │       v              v               v                      │
@@ -93,6 +94,7 @@ This project demonstrates core GRC Engineering principles:
    │                              │ - ResourceManagementClient         │
    │                              │ - StorageManagementClient          │
    │                              │ - NetworkManagementClient          │
+   │                              │ - MonitorManagementClient          │
    │                              └────────────────────────────────────┘
    │                                                    │
    │                              Returns: JSON resource configurations
@@ -304,7 +306,7 @@ storage_client.storage_accounts       network_client.security_rules
               │
               v
          [Generate Final Report]
-         Saves to: reports/compliance_report_<timestamp>.txt
+         Saves to: reports/compliance_report_<timestamp>.xlsx (Excel format)
 
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -321,11 +323,11 @@ storage_client.storage_accounts       network_client.security_rules
     │    - Remediation actions
     │    - Verification results
     │
-    ├──> reports/compliance_report_<timestamp>.txt (Human-readable)
-    │    - Executive summary
-    │    - Violation details
-    │    - Remediation actions taken
-    │    - Before/after comparison
+    ├──> reports/compliance_report_<timestamp>.xlsx (Professional Excel)
+    │    - Summary sheet: Executive overview with KPIs
+    │    - Violations sheet: Detailed findings with color-coded severity
+    │    - Recommendations sheet: Remediation guidance
+    │    - Auto-filters, frozen headers, and audit-ready formatting
     │
     └──> rollback_snapshots/ (Disaster recovery)
          - Original resource configurations
@@ -695,6 +697,6 @@ For questions, collaboration, or professional inquiries:
 
 ---
 
-**Version:** 1.0.0
-**Last Updated:** October 2025
+**Version:** 1.1.0
+**Last Updated:** January 2025
 **Developer:** Elija Ramos, CISSP
