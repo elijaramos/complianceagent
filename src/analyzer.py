@@ -376,7 +376,7 @@ Return ONLY valid JSON (no markdown, no explanations outside JSON)."""
         lines.append("")
 
         lines.append("TECHNICAL IMPLEMENTATION:")
-        technical_impl = remediation.get('technical_implementation', 'N/A')
+        technical_impl = remediation_plan.get('technical_implementation', 'N/A')
         lines.append(f"  {technical_impl}")
         lines.append("")
 
