@@ -478,18 +478,22 @@ class AzureRemediator:
         print(f"\nEnabling diagnostic logging: {account_name}")
 
         try:
-            # Build full resource ID
-            resource_id = (
+            # Build full resource ID for blob service
+            # IMPORTANT: Diagnostic settings must be created at the service level
+            # (blobServices/default), not at the storage account level
+            storage_account_id = (
                 f"/subscriptions/{self.subscription_id}"
                 f"/resourceGroups/{resource_group}"
                 f"/providers/Microsoft.Storage/storageAccounts/{account_name}"
             )
 
+            blob_service_id = f"{storage_account_id}/blobServices/default"
+
             print(f"  Checking existing diagnostic settings...")
 
             # Check if diagnostic settings already exist
             try:
-                existing_settings = self.monitor_client.diagnostic_settings.list(resource_id)
+                existing_settings = self.monitor_client.diagnostic_settings.list(blob_service_id)
                 if hasattr(existing_settings, 'value') and existing_settings.value:
                     for setting in existing_settings.value:
                         if setting.logs:
@@ -499,17 +503,17 @@ class AzureRemediator:
             except Exception:
                 pass  # No existing settings, we'll create new ones
 
-            print(f"  Creating diagnostic settings...")
+            print(f"  Creating diagnostic settings for blob service...")
 
             # Create diagnostic setting with logging enabled
-            # WHY: Sends all storage operation logs to built-in storage account logging
+            # WHY: Sends all blob storage operation logs to Log Analytics
+            # NOTE: Cannot send logs to the same storage account being monitored
             diagnostic_setting = DiagnosticSettingsResource(
-                storage_account_id=resource_id,  # Store logs in the same storage account
                 logs=[
                     LogSettings(
                         category="StorageRead",
                         enabled=True,
-                        retention_policy=None  # Keep logs indefinitely
+                        retention_policy=None  # Retention not supported for storage
                     ),
                     LogSettings(
                         category="StorageWrite",
@@ -524,16 +528,17 @@ class AzureRemediator:
                 ]
             )
 
-            # Create the diagnostic setting
+            # Create the diagnostic setting at blob service level
             # WHY: Uses Monitor API to configure centralized logging
             self.monitor_client.diagnostic_settings.create_or_update(
-                resource_uri=resource_id,
+                resource_uri=blob_service_id,  # Target blob service, not storage account
                 name="compliance-agent-logging",  # Diagnostic setting name
                 parameters=diagnostic_setting
             )
 
             print(f"  ✓ Diagnostic logging enabled successfully")
-            print(f"  📍 Azure Portal: Monitor → Diagnostic settings → View logs")
+            print(f"  📍 Azure Portal: Storage account → Monitoring → Diagnostic settings (blob)")
+            print(f"  ℹ  Logs will be collected by Azure Monitor (viewable in Activity Log)")
             return (True, f"Successfully enabled diagnostic logging for '{account_name}'")
 
         except ResourceNotFoundError:

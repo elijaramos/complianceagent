@@ -371,17 +371,20 @@ class AzureScanner:
             True if diagnostic logging is enabled, False otherwise
         """
         try:
-            # Build full ARM resource ID for the storage account
-            # WHY FULL RESOURCE ID: Monitor API requires complete Azure Resource Manager path
-            resource_id = (
+            # Build full ARM resource ID for blob service
+            # IMPORTANT: Diagnostic settings are at service level (blobServices/default)
+            # not at storage account level
+            storage_account_id = (
                 f"/subscriptions/{self.subscription_id}"
                 f"/resourceGroups/{resource_group}"
                 f"/providers/Microsoft.Storage/storageAccounts/{account.name}"
             )
 
-            # Query Monitor API for diagnostic settings
+            blob_service_id = f"{storage_account_id}/blobServices/default"
+
+            # Query Monitor API for diagnostic settings at blob service level
             # WHY list(): A resource can have multiple diagnostic settings (different destinations)
-            diagnostic_settings = self.monitor_client.diagnostic_settings.list(resource_id)
+            diagnostic_settings = self.monitor_client.diagnostic_settings.list(blob_service_id)
 
             # Check if any diagnostic setting has logging enabled
             if hasattr(diagnostic_settings, 'value'):
