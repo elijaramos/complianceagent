@@ -75,6 +75,22 @@ rules:
   # logging, organizations are blind to access patterns, data exfiltration attempts, and
   # unauthorized modifications. Logs provide the evidence trail needed for incident response
   # and are often required by regulations like SOX, HIPAA, and PCI DSS.
+  # WHY: Encryption in transit protects data from interception during transmission over networks.
+  # Without HTTPS enforcement, data can be sent over unencrypted HTTP, allowing attackers to
+  # intercept credentials, session tokens, and sensitive data using man-in-the-middle (MITM) attacks.
+  # This is especially critical for public networks (WiFi, internet) and for compliance with
+  # HIPAA, PCI DSS, and GDPR which all require encryption during data transmission.
+  - id: PR.DS-2-secure-transfer
+    nist_function: PROTECT
+    category: PR.DS-2
+    description: "Storage accounts must require secure transfer (HTTPS only)"
+    resource_type: Microsoft.Storage/storageAccounts
+    severity: HIGH
+    check:
+      property: enable_https_traffic_only
+      operator: equals
+      value: true
+
   - id: DE.CM-7-logging
     nist_function: DETECT
     category: DE.CM-7

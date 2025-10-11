@@ -438,7 +438,102 @@ class AzureRemediator:
             msg = f"Unexpected error: {str(e)}"
             print(f"  ✗ {msg}")
             return (False, msg)
-    
+
+    def enable_secure_transfer(self, resource_group: str,
+                               account_name: str) -> Tuple[bool, str]:
+        """
+        Enable HTTPS-only access (secure transfer required) for storage account.
+
+        WHY THIS MATTERS:
+        - Prevents man-in-the-middle (MITM) attacks on data in transit
+        - Forces TLS 1.2+ encryption for all connections to storage account
+        - Blocks unencrypted HTTP access that could expose data/credentials
+        - Required by HIPAA, PCI DSS, GDPR for data transmission security
+
+        WHAT THIS CHANGES:
+        - Sets enable_https_traffic_only = true on storage account
+        - Azure will reject any HTTP requests (returns 403 Forbidden)
+        - Only HTTPS (TLS 1.2+) connections will be accepted
+
+        IMPACT:
+        - Applications using http:// URLs will fail (need to change to https://)
+        - Legacy applications without TLS support will be blocked
+        - This is security-first: availability vs confidentiality tradeoff
+
+        TECHNICAL DETAILS:
+        - Uses Azure Management SDK StorageAccountUpdateParameters
+        - Simple boolean property update (low risk operation)
+        - Change is immediate (no restart required)
+        - Idempotent (safe to run multiple times)
+
+        Args:
+            resource_group: Resource group name
+            account_name: Storage account name
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        print(f"\nEnabling HTTPS-only access: {account_name}")
+
+        try:
+            # Get current state
+            print(f"  Fetching current configuration...")
+            account = self.storage_client.storage_accounts.get_properties(
+                resource_group_name=resource_group,
+                account_name=account_name
+            )
+
+            # Check if already enabled (idempotency check)
+            # WHY: Avoid unnecessary API calls, provide clear messaging
+            if hasattr(account, 'enable_https_traffic_only') and account.enable_https_traffic_only:
+                return (True, f"HTTPS-only access already enabled for '{account_name}'")
+
+            # Azure SDK Pattern: Use StorageAccountUpdateParameters
+            # WHY: Type-safe way to specify only the properties we want to change
+            # This is better than updating the entire account object
+            print(f"  Enabling secure transfer requirement...")
+
+            from azure.mgmt.storage.models import StorageAccountUpdateParameters
+
+            update_params = StorageAccountUpdateParameters(
+                enable_https_traffic_only=True  # The single property we're changing
+            )
+
+            # Execute update via Azure SDK
+            # WHY SDK vs CLI: Programmatic, type-safe, better error handling
+            updated_account = self.storage_client.storage_accounts.update(
+                resource_group_name=resource_group,
+                account_name=account_name,
+                parameters=update_params
+            )
+
+            # Verify the change was applied
+            # WHY: Defense in depth - confirm Azure actually made the change
+            if updated_account.enable_https_traffic_only:
+                print(f"  ✓ HTTPS-only access enabled successfully")
+                print(f"  📍 Azure Portal: Storage account → Configuration → 'Secure transfer required' = Enabled")
+                print(f"  ⚠  Note: HTTP requests will now be rejected with 403 Forbidden")
+                return (True, f"Successfully enabled HTTPS-only access for '{account_name}'")
+            else:
+                return (False, f"Update completed but secure transfer not confirmed for '{account_name}'")
+
+        except ResourceNotFoundError:
+            msg = f"Storage account '{account_name}' not found in resource group '{resource_group}'"
+            print(f"  ✗ {msg}")
+            return (False, msg)
+        except HttpResponseError as e:
+            msg = f"Azure API error: {e.message}"
+            print(f"  ✗ {msg}")
+            return (False, msg)
+        except AzureError as e:
+            msg = f"Azure SDK error: {str(e)}"
+            print(f"  ✗ {msg}")
+            return (False, msg)
+        except Exception as e:
+            msg = f"Unexpected error: {str(e)}"
+            print(f"  ✗ {msg}")
+            return (False, msg)
+
     def enable_storage_logging(self, resource_group: str,
                               account_name: str) -> Tuple[bool, str]:
         """
@@ -596,7 +691,10 @@ class AzureRemediator:
             
             elif rule_id == 'PR.DS-1-storage-public-access':
                 return self.remediate_storage_public_access(resource_group, resource_name)
-            
+
+            elif rule_id == 'PR.DS-2-secure-transfer':
+                return self.enable_secure_transfer(resource_group, resource_name)
+
             elif rule_id == 'PR.AC-4-network-security':
                 # NSG remediation requires dangerous rules list
                 dangerous_rules = resource.get('violating_rule_details', [])
