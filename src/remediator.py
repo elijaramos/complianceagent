@@ -498,10 +498,10 @@ class AzureRemediator:
             # Get current service properties to check if logging already enabled
             try:
                 properties = blob_service_client.get_service_properties()
-                if (hasattr(properties, 'analytics_logging') and properties.analytics_logging and
-                    properties.analytics_logging.read and
-                    properties.analytics_logging.write and
-                    properties.analytics_logging.delete):
+                if ('analytics_logging' in properties and properties['analytics_logging'] and
+                    properties['analytics_logging'].read and
+                    properties['analytics_logging'].write and
+                    properties['analytics_logging'].delete):
                     return (True, f"Storage Analytics logging already enabled for '{account_name}'")
             except Exception:
                 pass  # If we can't get properties, proceed to enable

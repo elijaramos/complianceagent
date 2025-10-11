@@ -388,9 +388,9 @@ class AzureScanner:
             properties = blob_service_client.get_service_properties()
 
             # Check if logging is enabled for any operation type
-            # Note: analytics_logging is an object with attributes, not a dict
-            if hasattr(properties, 'analytics_logging') and properties.analytics_logging:
-                logging = properties.analytics_logging
+            # Note: get_service_properties() returns a dict
+            if 'analytics_logging' in properties and properties['analytics_logging']:
+                logging = properties['analytics_logging']
                 # Compliant if ANY logging is enabled (read, write, or delete)
                 if logging.read or logging.write or logging.delete:
                     return True
